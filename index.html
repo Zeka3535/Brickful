@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Каталог деталей и наборов LEGO</title>
+
+  <!-- Favicon -->
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="shortcut icon" href="assets/icons/favicon.ico">
+  <meta name="msapplication-TileColor" content="#1a202c">
+  <meta name="theme-color" content="#1a202c">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Каталог деталей и наборов LEGO">
+  <meta property="og:description" content="Современное веб-приложение для каталогизации вашей личной коллекции LEGO. Включает детали, наборы и минифигурки в едином удобном интерфейсе.">
+  <meta property="og:image" content="assets/images/ogimage.png">
+  <meta property="og:type" content="website">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- External Libraries -->
+  <script src="https://unpkg.com/remotestoragejs/release/remotestorage.js"></script>
+  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+  
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            'sans': ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+            'mono': ['JetBrains Mono', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', 'monospace'],
+          },
+          letterSpacing: {
+            'tighter': '-0.05em',
+            'tight': '-0.025em',
+            'normal': '0em',
+            'wide': '0.025em',
+            'wider': '0.05em',
+            'widest': '0.1em',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-200">
+  <!-- Header -->
+  <header id="header-container" class="bg-gray-800 sticky top-0 z-20 p-4 border-b border-gray-700"></header>
+
+  <!-- Main Content -->
+  <main id="main-content" class="min-h-screen">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <p class="text-xl font-medium">Загрузка каталога LEGO...</p>
+        <div id="loading-progress" class="mt-4 text-sm text-gray-400"></div>
+      </div>
+    </div>
+
+    <!-- App Content -->
+    <div id="app-content" class="hidden">
+      <!-- Navigation will be dynamically generated -->
+    </div>
+  </main>
+
+  <!-- Modals Container -->
+  <div id="modals-container"></div>
+
+  <!-- Scripts -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/data-loader.js"></script>
+  <script src="assets/js/ui-components.js"></script>
+  <script src="assets/js/search.js"></script>
+  <script src="assets/js/catalog.js"></script>
+  <script src="assets/js/collection.js"></script>
+  <script src="assets/js/analytics.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
