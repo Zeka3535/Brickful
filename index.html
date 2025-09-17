@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Каталог деталей и наборов LEGO</title>
 
-  <!-- Favicon -->
   <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png">
@@ -14,25 +13,31 @@
   <meta name="msapplication-TileColor" content="#1a202c">
   <meta name="theme-color" content="#1a202c">
 
-  <!-- Open Graph -->
   <meta property="og:title" content="Каталог деталей и наборов LEGO">
   <meta property="og:description" content="Современное веб-приложение для каталогизации вашей личной коллекции LEGO. Включает детали, наборы и минифигурки в едином удобном интерфейсе.">
   <meta property="og:image" content="assets/images/ogimage.png">
   <meta property="og:type" content="website">
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- External Libraries -->
+  <!-- remoteStorage.js library -->
   <script src="https://unpkg.com/remotestoragejs/release/remotestorage.js"></script>
+  <!-- QR Code and DataMatrix scanner library -->
   <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
-  
-  <!-- Tailwind Config -->
+  <script>
+    // Проверяем загрузку RemoteStorage
+    window.addEventListener('load', function() {
+      if (typeof RemoteStorage !== 'undefined') {
+        console.log('✅ RemoteStorage loaded successfully');
+        window.remoteStorageAvailable = true;
+      } else {
+        console.warn('⚠️ RemoteStorage not loaded, using fallback');
+        window.remoteStorageAvailable = false;
+      }
+    });
+  </script>
   <script>
     tailwind.config = {
       theme: {
@@ -58,28 +63,63 @@
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body class="bg-gray-900 text-gray-200">
-  <!-- Header -->
-  <header id="header-container" class="bg-gray-800 sticky top-0 z-20 p-4 border-b border-gray-700"></header>
-
-  <!-- Main Content -->
-  <main id="main-content" class="min-h-screen">
-    <!-- Loading Screen -->
-    <div id="loading-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p class="text-xl font-medium">Загрузка каталога LEGO...</p>
-        <div id="loading-progress" class="mt-4 text-sm text-gray-400"></div>
+  <div id="scroll-progress"><div class="bar"></div></div>
+  <aside id="sidebar-container" class="w-80 bg-gray-800 p-4 flex flex-col h-full border-r border-gray-700 fixed inset-y-0 left-0 z-40 lg:translate-x-0 -translate-x-full"></aside>
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-30 hidden lg:hidden"></div>
+  <div class="lg:ml-80 flex flex-col h-screen">
+    <header id="header-container" class="bg-gray-800 sticky top-0 z-20 p-4 border-b border-gray-700"></header>
+    <main id="main-content" class="flex-1 overflow-y-auto no-scrollbar">
+      
+      <div id="loading-container" class="flex flex-col items-center justify-center h-full p-8">
+        <div class="text-center">
+          <div class="loader mx-auto mb-4"></div>
+          <h2 class="text-2xl font-bold text-gray-200 mb-2">Загрузка каталога LEGO</h2>
+          <p id="loading-status" class="text-gray-400 mb-4">Подготовка к загрузке...</p>
+          <div class="w-64 bg-gray-700 rounded-full h-2 mb-4 mx-auto">
+            <div id="loading-progress" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+          </div>
+          <div id="loading-details" class="text-sm text-gray-500"></div>
+          <div class="tip-container max-w-md mx-auto mt-4">
+            <div id="loading-tip" class="tip-text text-xs text-blue-400"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center modal-hidden"></div>
+  <div id="set-modal-container" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center modal-hidden"></div>
+  <div id="minifig-modal-container" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center modal-hidden"></div>
+  <div id="colors-modal-container" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center modal-hidden"></div>
+  <div id="filter-modal-container" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center modal-hidden"></div>
+  <div id="settings-modal-container" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center modal-hidden"></div>
+  <div id="related-sets-modal-container" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center modal-hidden"></div>
+  <div id="wishlist-modal-container" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center modal-hidden"></div>
+  <input type="file" id="import-csv-input" class="hidden" accept=".csv">
+  <div id="image-viewer-container" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center viewer-hidden">
+    <div class="relative w-full h-full flex items-center justify-center p-[5%]">
+      <div class="image-wrapper bg-white rounded-lg shadow-2xl overflow-hidden">
+        <img id="fullscreen-image" src="" alt="Полноэкранный просмотр" class="w-full h-full object-contain transition-all duration-300 ease-out">
       </div>
     </div>
+    <button id="image-viewer-close" class="modal-close-btn absolute top-4 right-4 z-[101]">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+  <button id="scroll-to-top-btn" class="fixed bottom-6 right-6 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 opacity-0 pointer-events-none z-40 transform translate-y-4" aria-label="Вернуться наверх" title="Прокрутить страницу в начало">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"></path></svg>
+  </button>
 
-    <!-- App Content -->
-    <div id="app-content" class="hidden">
-      <!-- Navigation will be dynamically generated -->
-    </div>
-  </main>
-
-  <!-- Modals Container -->
-  <div id="modals-container"></div>
+  <!-- Система неактивности с подсказками -->
+  <div id="inactivity-overlay" class="inactivity-overlay hidden">
+      <div class="inactivity-content">
+          <div class="inactivity-icon">💡</div>
+          <div class="inactivity-title">Полезная подсказка</div>
+          <div class="inactivity-text" id="inactivity-tip"></div>
+          <button class="inactivity-close" id="inactivity-close" title="Закрыть подсказку"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+  </div>
 
   <!-- Scripts -->
   <script src="assets/js/config.js"></script>

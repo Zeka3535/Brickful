@@ -298,9 +298,9 @@ function showNotification(message, type = 'info', duration = 3000) {
 function handleError(error, context = '') {
   console.error(`Error in ${context}:`, error);
   
-  if (CONFIG.ANALYTICS.enabled) {
+  if (CONFIG.ANALYTICS.enabled && window.analytics) {
     // Track error in analytics
-    trackEvent('error', {
+    window.analytics.trackEvent('error', {
       context,
       message: error.message,
       stack: error.stack
