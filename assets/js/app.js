@@ -1,11 +1,15 @@
 // Main application for LEGO Catalog
+import { CONFIG } from './config.js';
+import { Utils } from './utils.js';
+import { Storage } from './storage.js';
+import { DataLoader } from './data-loader.js';
 
 class LEGOCatalogApp {
   constructor() {
     this.isInitialized = false;
     this.loadingProgress = 0;
     this.currentView = 'catalog';
-    this.settings = storage.getSettings();
+    this.settings = Storage.getSettings();
   }
 
   // Initialize application
@@ -134,12 +138,12 @@ class LEGOCatalogApp {
     this.updateLoadingProgress(0, 'Инициализация...');
     
     // Setup progress tracking
-    dataLoader.onProgress((progress) => {
+    DataLoader.onProgress((progress) => {
       this.updateLoadingProgress(progress.loaded, progress.total, progress.current);
     });
     
     // Load all data
-    const success = await dataLoader.loadAllData();
+    const success = await DataLoader.loadAllData();
     
     if (!success) {
       throw new Error('Не удалось загрузить данные каталога');
@@ -393,14 +397,15 @@ class LEGOCatalogApp {
   // Reset app
   reset() {
     if (confirm('Сбросить все настройки и данные? Это действие нельзя отменить.')) {
-      storage.clearLocal();
+      Storage.clearLocal();
       location.reload();
     }
   }
 }
 
 // Create global app instance
-window.app = new LEGOCatalogApp();
+const app = new LEGOCatalogApp();
+window.app = app;
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -408,4 +413,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Export for use in other modules
-window.LEGOCatalogApp = LEGOCatalogApp;
+export { app, LEGOCatalogApp };
