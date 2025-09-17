@@ -807,3 +807,76 @@ p, span, div {
     padding-right: 2.5rem; /* 40px - достаточно места для кнопки очистки */
   }
 }
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Search highlight */
+.search-highlight {
+  @apply bg-yellow-200 text-yellow-900 px-1 rounded;
+}
+
+/* Card hover effects */
+.catalog-item {
+  transition: all 0.2s ease;
+}
+
+.catalog-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Image loading placeholder */
+.image-placeholder {
+  @apply bg-gray-700 flex items-center justify-center text-gray-400;
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 640px) {
+  .catalog-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .catalog-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .catalog-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .catalog-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (min-width: 1281px) {
+  .catalog-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}

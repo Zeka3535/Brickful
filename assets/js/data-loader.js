@@ -53,6 +53,74 @@ class DataLoader {
     }
   }
 
+  // Fetch text with progress
+  async fetchTextWithProgress(url, status, filename) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to load ${filename}: ${response.statusText}`);
+      }
+      
+      const contentLength = response.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      let loaded = 0;
+      
+      const reader = response.body.getReader();
+      const chunks = [];
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        chunks.push(value);
+        loaded += value.length;
+        
+        if (total > 0) {
+          const progress = Math.round((loaded / total) * 100);
+          this.updateProgress(loaded, total, `${status} (${progress}%)`);
+        } else {
+          this.updateProgress(loaded, loaded, status);
+        }
+      }
+      
+      const chunksAll = new Uint8Array(loaded);
+      let position = 0;
+      for (const chunk of chunks) {
+        chunksAll.set(chunk, position);
+        position += chunk.length;
+      }
+      
+      return new TextDecoder('utf-8').decode(chunksAll);
+    } catch (error) {
+      Utils.handleError(error, `fetchTextWithProgress(${filename})`);
+      throw error;
+    }
+  }
+
+  // Parse CSV line
+  parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
+  }
+
   // Load all data
   async loadAllData() {
     this.updateProgress(0, 10, 'Инициализация...');
@@ -144,46 +212,129 @@ class DataLoader {
 
   // Load parts
   async loadParts() {
-    const parts = await this.loadCSV(`${CONFIG.DATA_PATH}${CONFIG.CSV_FILES.parts}`);
-    
-    parts.forEach(part => {
-      this.data.parts.set(part.part_num, {
-        partNum: part.part_num,
-        name: part.name,
-        categoryId: parseInt(part.part_cat_id),
-        material: part.part_material
+    try {
+      const csvText = await this.fetchTextWithProgress(`${CONFIG.DATA_PATH}${CONFIG.CSV_FILES.parts}`, 'Загрузка деталей...', 'parts.csv');
+      const lines = csvText.split('\n').slice(1); // Пропускаем заголовок
+      
+      lines.forEach(line => {
+        if (line.trim()) {
+          const fields = this.parseCSVLine(line);
+          const [part_num, name, part_cat_id] = fields;
+          if (part_num && name) {
+            const part = {
+              id: part_num,
+              name: name,
+              part_num: part_num,
+              part_cat_id: part_cat_id ? parseInt(part_cat_id) : null,
+              categoryId: part_cat_id ? parseInt(part_cat_id) : null,
+              num_sets: 0,
+              part_img_url: null,
+              rebrickable_img_url: null
+            };
+            
+            // Проверяем корректность данных
+            if (part.categoryId && (part.categoryId < 1 || part.categoryId > 1000)) {
+              console.warn('Invalid category ID for part', part_num, ':', part.categoryId);
+              part.categoryId = null;
+              part.part_cat_id = null;
+            }
+            
+            this.data.parts.set(part_num, part);
+          }
+        }
       });
-    });
+      
+      console.log(`✅ Загружено ${this.data.parts.size} деталей`);
+    } catch (error) {
+      console.error('❌ Ошибка загрузки деталей:', error);
+      throw error;
+    }
   }
 
   // Load sets
   async loadSets() {
-    const sets = await this.loadCSV(`${CONFIG.DATA_PATH}${CONFIG.CSV_FILES.sets}`);
-    
-    sets.forEach(set => {
-      this.data.sets.set(set.set_num, {
-        setNum: set.set_num,
-        name: set.name,
-        year: parseInt(set.year),
-        themeId: parseInt(set.theme_id),
-        numParts: parseInt(set.num_parts) || 0,
-        imgUrl: set.img_url
+    try {
+      const csvText = await this.fetchTextWithProgress(`${CONFIG.DATA_PATH}${CONFIG.CSV_FILES.sets}`, 'Загрузка наборов...', 'sets.csv');
+      const lines = csvText.split('\n').slice(1); // Пропускаем заголовок
+      
+      lines.forEach(line => {
+        if (line.trim()) {
+          const fields = this.parseCSVLine(line);
+          const [set_num, name, year, theme_id, num_parts, img_url] = fields;
+          if (set_num && name) {
+            // Используем URL изображения из CSV, если доступно, иначе генерируем
+            let setImgUrl = img_url || `https://cdn.rebrickable.com/media/sets/${set_num}.jpg`;
+            
+            // Проверяем URL изображения
+            if (setImgUrl && (!setImgUrl.startsWith('http') || setImgUrl.includes('localhost'))) {
+              console.warn('Invalid image URL detected for set', set_num, ':', setImgUrl);
+              setImgUrl = `https://cdn.rebrickable.com/media/sets/${set_num}.jpg`;
+            }
+            
+            const set = {
+              set_num: set_num,
+              name: name,
+              year: year ? parseInt(year) : null,
+              theme_id: theme_id ? parseInt(theme_id) : null,
+              num_parts: num_parts ? parseInt(num_parts) : null,
+              set_img_url: setImgUrl
+            };
+            
+            // Проверяем корректность данных
+            if (set.year && (set.year < 1900 || set.year > 2030)) {
+              console.warn('Invalid year for set', set_num, ':', set.year);
+              set.year = null;
+            }
+            
+            this.data.sets.set(set_num, set);
+          }
+        }
       });
-    });
+      
+      console.log(`✅ Загружено ${this.data.sets.size} наборов`);
+    } catch (error) {
+      console.error('❌ Ошибка загрузки наборов:', error);
+      throw error;
+    }
   }
 
   // Load minifigs
   async loadMinifigs() {
-    const minifigs = await this.loadCSV(`${CONFIG.DATA_PATH}${CONFIG.CSV_FILES.minifigs}`);
-    
-    minifigs.forEach(minifig => {
-      this.data.minifigs.set(minifig.fig_num, {
-        figNum: minifig.fig_num,
-        name: minifig.name,
-        numParts: parseInt(minifig.num_parts) || 0,
-        imgUrl: minifig.img_url
+    try {
+      const csvText = await this.fetchTextWithProgress(`${CONFIG.DATA_PATH}${CONFIG.CSV_FILES.minifigs}`, 'Загрузка минифигурок...', 'minifigs.csv');
+      const lines = csvText.split('\n').slice(1); // Пропускаем заголовок
+      
+      lines.forEach(line => {
+        if (line.trim()) {
+          const fields = this.parseCSVLine(line);
+          const [fig_num, name, num_parts, img_url] = fields;
+          if (fig_num && name) {
+            // Используем URL изображения из CSV, если доступно, иначе генерируем
+            let minifigImgUrl = img_url || `https://cdn.rebrickable.com/media/minifigs/${fig_num}.jpg`;
+            
+            // Проверяем URL изображения
+            if (minifigImgUrl && (!minifigImgUrl.startsWith('http') || minifigImgUrl.includes('localhost'))) {
+              console.warn('Invalid image URL detected for minifig', fig_num, ':', minifigImgUrl);
+              minifigImgUrl = `https://cdn.rebrickable.com/media/minifigs/${fig_num}.jpg`;
+            }
+            
+            const minifig = {
+              fig_num: fig_num,
+              name: name,
+              num_parts: num_parts ? parseInt(num_parts) : 0,
+              img_url: minifigImgUrl
+            };
+            
+            this.data.minifigs.set(fig_num, minifig);
+          }
+        }
       });
-    });
+      
+      console.log(`✅ Загружено ${this.data.minifigs.size} минифигурок`);
+    } catch (error) {
+      console.error('❌ Ошибка загрузки минифигурок:', error);
+      throw error;
+    }
   }
 
   // Load inventories
@@ -237,27 +388,10 @@ class DataLoader {
   // Load inventory parts (split files)
   async loadInventoryParts() {
     try {
-      // First try to load parts_info.txt to get file count
-      const partsInfoResponse = await fetch(`${CONFIG.DATA_PATH}${CONFIG.CSV_FILES.inventoryPartsSplit}parts_info.txt`);
+      // Load only the files that we know exist (1-6)
+      const fileCount = 6; // We know we have files 001-006
       
-      let fileCount = 0;
-      if (partsInfoResponse.ok) {
-        const partsInfoText = await partsInfoResponse.text();
-        const match = partsInfoText.match(/Total files: (\d+)/);
-        if (match) {
-          fileCount = parseInt(match[1]);
-        }
-      }
-      
-      // If no parts_info.txt, try to detect files
-      if (fileCount === 0) {
-        fileCount = await this.detectInventoryPartsFiles();
-      }
-      
-      if (fileCount === 0) {
-        console.warn('No inventory parts files found');
-        return;
-      }
+      console.log(`Loading inventory parts files (1-${fileCount})...`);
       
       // Load all parts files
       for (let i = 1; i <= fileCount; i++) {
@@ -281,6 +415,8 @@ class DataLoader {
               isSpare: part.is_spare === 't'
             });
           });
+          
+          console.log(`Loaded inventory parts file ${fileNum}: ${parts.length} parts`);
         } catch (error) {
           console.warn(`Failed to load inventory parts file ${fileNum}:`, error);
         }
@@ -303,9 +439,13 @@ class DataLoader {
         if (response.ok) {
           fileCount = i;
         } else {
-          break;
+          // If we get 404, we've reached the end of available files
+          if (response.status === 404) {
+            break;
+          }
         }
       } catch (error) {
+        // If there's a network error, stop trying
         break;
       }
     }
@@ -319,9 +459,9 @@ class DataLoader {
     this.partSearchIndex = new Map();
     this.data.parts.forEach((part, partNum) => {
       const searchTerms = [
-        part.partNum.toLowerCase(),
-        part.name.toLowerCase(),
-        part.material.toLowerCase()
+        part.part_num?.toLowerCase() || '',
+        part.name?.toLowerCase() || '',
+        part.material?.toLowerCase() || ''
       ].join(' ');
       
       this.partSearchIndex.set(partNum, searchTerms);
@@ -331,8 +471,8 @@ class DataLoader {
     this.setSearchIndex = new Map();
     this.data.sets.forEach((set, setNum) => {
       const searchTerms = [
-        set.setNum.toLowerCase(),
-        set.name.toLowerCase()
+        set.set_num?.toLowerCase() || '',
+        set.name?.toLowerCase() || ''
       ].join(' ');
       
       this.setSearchIndex.set(setNum, searchTerms);
@@ -342,8 +482,8 @@ class DataLoader {
     this.minifigSearchIndex = new Map();
     this.data.minifigs.forEach((minifig, figNum) => {
       const searchTerms = [
-        minifig.figNum.toLowerCase(),
-        minifig.name.toLowerCase()
+        minifig.fig_num?.toLowerCase() || '',
+        minifig.name?.toLowerCase() || ''
       ].join(' ');
       
       this.minifigSearchIndex.set(figNum, searchTerms);
@@ -409,31 +549,37 @@ class DataLoader {
 
   // Get data by type
   getData(type) {
-    return this.data[type] || new Map();
+    if (!this.data[type]) return new Map();
+    return this.data[type];
   }
 
   // Get item by ID
   getItem(type, id) {
-    return this.data[type]?.get(id);
+    if (!this.data[type]) return null;
+    return this.data[type].get(id);
   }
 
   // Get all items as array
   getAllItems(type) {
-    return Array.from(this.data[type]?.values() || []);
+    if (!this.data[type]) return [];
+    return Array.from(this.data[type].values());
   }
 
   // Get items by category
   getItemsByCategory(type, categoryId) {
     const items = this.getAllItems(type);
-    return items.filter(item => item.categoryId === categoryId || item.themeId === categoryId);
+    return items.filter(item => 
+      (item.categoryId && item.categoryId === categoryId) || 
+      (item.themeId && item.themeId === categoryId)
+    );
   }
 
   // Get inventory for set
   getSetInventory(setNum) {
     return {
-      parts: this.data.inventoryParts.get(setNum) || [],
-      minifigs: this.data.inventoryMinifigs.get(setNum) || [],
-      sets: this.data.inventorySets.get(setNum) || []
+      parts: this.data.inventoryParts?.get(setNum) || [],
+      minifigs: this.data.inventoryMinifigs?.get(setNum) || [],
+      sets: this.data.inventorySets?.get(setNum) || []
     };
   }
 
@@ -441,28 +587,30 @@ class DataLoader {
   getRelatedSets(figNum) {
     const relatedSets = new Set();
     
-    for (const [setNum, minifigs] of this.data.inventoryMinifigs) {
-      if (minifigs.some(m => m.figNum === figNum)) {
-        relatedSets.add(setNum);
+    if (this.data.inventoryMinifigs) {
+      for (const [setNum, minifigs] of this.data.inventoryMinifigs) {
+        if (minifigs.some(m => m.figNum === figNum)) {
+          relatedSets.add(setNum);
+        }
       }
     }
     
-    return Array.from(relatedSets).map(setNum => this.data.sets.get(setNum)).filter(Boolean);
+    return Array.from(relatedSets).map(setNum => this.data.sets?.get(setNum)).filter(Boolean);
   }
 
   // Get data statistics
   getStatistics() {
     return {
-      colors: this.data.colors.size,
-      parts: this.data.parts.size,
-      sets: this.data.sets.size,
-      minifigs: this.data.minifigs.size,
-      themes: this.data.themes.size,
-      partCategories: this.data.partCategories.size,
-      inventories: this.data.inventories.size,
-      inventorySets: this.data.inventorySets.size,
-      inventoryMinifigs: this.data.inventoryMinifigs.size,
-      inventoryParts: this.data.inventoryParts.size
+      colors: this.data.colors?.size || 0,
+      parts: this.data.parts?.size || 0,
+      sets: this.data.sets?.size || 0,
+      minifigs: this.data.minifigs?.size || 0,
+      themes: this.data.themes?.size || 0,
+      partCategories: this.data.partCategories?.size || 0,
+      inventories: this.data.inventories?.size || 0,
+      inventorySets: this.data.inventorySets?.size || 0,
+      inventoryMinifigs: this.data.inventoryMinifigs?.size || 0,
+      inventoryParts: this.data.inventoryParts?.size || 0
     };
   }
 }

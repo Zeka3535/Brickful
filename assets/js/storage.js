@@ -253,11 +253,36 @@ class StorageManager {
         logging: CONFIG.DEBUG
       });
 
+      // Initialize the client
       await remoteStorage.access.claim('lego-catalog', 'rw');
+      
+      // Wait for the client to be ready
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('RemoteStorage initialization timeout'));
+        }, 5000);
+        
+        if (remoteStorage.remote) {
+          // Client is already ready
+          clearTimeout(timeout);
+          resolve();
+        } else {
+          remoteStorage.on('ready', () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+          
+          remoteStorage.on('error', (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+        }
+      });
+      
       this.cloudStorage = remoteStorage;
       return true;
     } catch (error) {
-      Utils.handleError(error, 'initCloudStorage');
+      console.warn('RemoteStorage initialization failed:', error);
       return false;
     }
   }
@@ -269,12 +294,13 @@ class StorageManager {
       const collection = this.getCollection();
       const settings = this.getSettings();
       
-      await this.cloudStorage.storeObject('collection', collection);
-      await this.cloudStorage.storeObject('settings', settings);
+      // Use the correct RemoteStorage API methods
+      await this.cloudStorage.storeObject('lego-catalog/collection', collection);
+      await this.cloudStorage.storeObject('lego-catalog/settings', settings);
       
       return true;
     } catch (error) {
-      Utils.handleError(error, 'syncToCloud');
+      console.warn('Cloud sync failed:', error);
       return false;
     }
   }
@@ -283,15 +309,22 @@ class StorageManager {
     if (!this.cloudStorage) return false;
 
     try {
-      const collection = await this.cloudStorage.getObject('collection');
-      const settings = await this.cloudStorage.getObject('settings');
+      // Check if the cloudStorage has the correct methods
+      if (typeof this.cloudStorage.getObject !== 'function') {
+        console.warn('RemoteStorage getObject method not available');
+        return false;
+      }
+      
+      // Use the correct RemoteStorage API methods
+      const collection = await this.cloudStorage.getObject('lego-catalog/collection');
+      const settings = await this.cloudStorage.getObject('lego-catalog/settings');
       
       if (collection) this.setCollection(collection);
       if (settings) this.setSettings(settings);
       
       return true;
     } catch (error) {
-      Utils.handleError(error, 'syncFromCloud');
+      console.warn('Cloud sync failed:', error);
       return false;
     }
   }

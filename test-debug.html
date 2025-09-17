@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Test - LEGO Catalog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <h1 class="text-3xl font-bold mb-4">Debug Test - LEGO Catalog</h1>
+    
+    <div class="space-y-4">
+        <div class="bg-gray-800 p-4 rounded-lg">
+            <h2 class="text-xl font-semibold mb-2">Проверка загрузки модулей</h2>
+            <button id="test-modules" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">
+                Тест модулей
+            </button>
+            <div id="module-result" class="mt-2 text-sm"></div>
+        </div>
+        
+        <div class="bg-gray-800 p-4 rounded-lg">
+            <h2 class="text-xl font-semibold mb-2">Проверка CSV файлов</h2>
+            <button id="test-csv" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded">
+                Тест CSV
+            </button>
+            <div id="csv-result" class="mt-2 text-sm"></div>
+        </div>
+        
+        <div class="bg-gray-800 p-4 rounded-lg">
+            <h2 class="text-xl font-semibold mb-2">Проверка Cloud Storage</h2>
+            <button id="test-cloud" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded">
+                Тест Cloud Storage
+            </button>
+            <div id="cloud-result" class="mt-2 text-sm"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Тест загрузки модулей
+        document.getElementById('test-modules').addEventListener('click', async () => {
+            const result = document.getElementById('module-result');
+            result.textContent = 'Тестирование...';
+            
+            try {
+                const { Storage } = await import('./assets/js/storage.js');
+                const { DEBUG_MODE } = await import('./assets/js/config.js');
+                const { Utils } = await import('./assets/js/utils.js');
+                const { DataLoader } = await import('./assets/js/data-loader.js');
+                
+                result.innerHTML = `
+                    <span class="text-green-400">✅ Модули загружены успешно</span><br>
+                    <span class="text-gray-400">Storage: ${typeof Storage}</span><br>
+                    <span class="text-gray-400">DEBUG_MODE: ${DEBUG_MODE}</span><br>
+                    <span class="text-gray-400">Utils: ${typeof Utils}</span><br>
+                    <span class="text-gray-400">DataLoader: ${typeof DataLoader}</span>
+                `;
+            } catch (error) {
+                result.innerHTML = `
+                    <span class="text-red-400">❌ Ошибка загрузки модулей</span><br>
+                    <span class="text-gray-400">${error.message}</span>
+                `;
+            }
+        });
+        
+        // Тест CSV файлов
+        document.getElementById('test-csv').addEventListener('click', async () => {
+            const result = document.getElementById('csv-result');
+            result.textContent = 'Тестирование...';
+            
+            try {
+                const { DataLoader } = await import('./assets/js/data-loader.js');
+                
+                // Тестируем загрузку одного CSV файла
+                const response = await fetch('./data/colors.csv');
+                if (response.ok) {
+                    const text = await response.text();
+                    const lines = text.split('\n').length;
+                    
+                    result.innerHTML = `
+                        <span class="text-green-400">✅ CSV файлы доступны</span><br>
+                        <span class="text-gray-400">colors.csv: ${lines} строк</span><br>
+                        <span class="text-gray-400">Размер: ${Math.round(text.length / 1024)} KB</span>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <span class="text-red-400">❌ Ошибка загрузки CSV</span><br>
+                        <span class="text-gray-400">Статус: ${response.status}</span>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <span class="text-red-400">❌ Ошибка тестирования CSV</span><br>
+                    <span class="text-gray-400">${error.message}</span>
+                `;
+            }
+        });
+        
+        // Тест Cloud Storage
+        document.getElementById('test-cloud').addEventListener('click', async () => {
+            const result = document.getElementById('cloud-result');
+            result.textContent = 'Тестирование...';
+            
+            try {
+                const { Storage } = await import('./assets/js/storage.js');
+                
+                // Тестируем инициализацию cloud storage
+                const success = await Storage.initRemoteStorage();
+                
+                if (success) {
+                    result.innerHTML = `
+                        <span class="text-green-400">✅ Cloud Storage инициализирован</span><br>
+                        <span class="text-gray-400">RemoteStorage доступен</span>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <span class="text-yellow-400">⚠️ Cloud Storage недоступен</span><br>
+                        <span class="text-gray-400">Используется локальное хранилище</span>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <span class="text-red-400">❌ Ошибка Cloud Storage</span><br>
+                    <span class="text-gray-400">${error.message}</span>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

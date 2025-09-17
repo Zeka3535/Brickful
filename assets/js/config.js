@@ -4,7 +4,7 @@
 const REBRICKABLE_API_URL = 'https://rebrickable.com/api/v3/lego';
 const REBRICKABLE_API_KEYS = [
   '20c78cc607d6059c8d2a61338d851590',
-  '04a7405ad41f1dd484a562f6e0c57312',
+  '04a7405ad41f1dd484a562f6e0c57312', 
   'd93f5c0989f63afa9b1c29ef8ad66002',
   'b4179c1b8bd3c022ec9fc0e713e96b77',
   'd32527bc33b575b8825a0ba04ba4add5'
@@ -80,7 +80,7 @@ const CONFIG = {
   
   // Features
   FEATURES: {
-    cloudStorage: true,
+    cloudStorage: false, // Temporarily disabled due to API issues
     aiRecognition: true,
     dataMatrixScanner: true,
     wishlist: true,
