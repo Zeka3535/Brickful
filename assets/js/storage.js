@@ -1,4 +1,6 @@
 // Storage management for LEGO Catalog
+import { CONFIG, DEFAULT_SETTINGS } from './config.js';
+import { Utils } from './utils.js';
 
 class StorageManager {
   constructor() {
@@ -239,6 +241,10 @@ class StorageManager {
 
   // Cloud storage integration
   async initCloudStorage() {
+    return this.initRemoteStorage();
+  }
+
+  async initRemoteStorage() {
     if (!window.remoteStorageAvailable) return false;
 
     try {
@@ -360,7 +366,11 @@ class StorageManager {
 }
 
 // Create global storage instance
-window.storage = new StorageManager();
+const storage = new StorageManager();
+window.storage = storage;
+
+// Export for use in other modules
+export { storage as Storage };
 
 // Initialize cloud storage on load
 window.addEventListener('load', async () => {

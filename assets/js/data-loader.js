@@ -1,4 +1,6 @@
 // Data loading and management for LEGO Catalog
+import { CONFIG } from './config.js';
+import { Utils } from './utils.js';
 
 class DataLoader {
   constructor() {
@@ -466,7 +468,8 @@ class DataLoader {
 }
 
 // Create global data loader instance
-window.dataLoader = new DataLoader();
+const dataLoader = new DataLoader();
+window.dataLoader = dataLoader;
 
 // Export for use in other modules
-window.DataLoader = DataLoader;
+export { dataLoader as DataLoader };

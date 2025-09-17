@@ -1,15 +1,10 @@
-// Service Worker for LEGO Catalog
-
+// service-worker.js
 const CACHE_NAME = 'lego-catalog-v1';
-const STATIC_CACHE = 'lego-catalog-static-v1';
-const DYNAMIC_CACHE = 'lego-catalog-dynamic-v1';
-
-// Files to cache immediately
-const STATIC_FILES = [
+const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
   '/assets/css/styles.css',
+  '/assets/js/app.js',
   '/assets/js/config.js',
   '/assets/js/utils.js',
   '/assets/js/storage.js',
@@ -20,380 +15,166 @@ const STATIC_FILES = [
   '/assets/js/catalog.js',
   '/assets/js/collection.js',
   '/assets/js/analytics.js',
-  '/assets/js/app.js'
+  '/manifest.json',
+  '/assets/icons/favicon-16x16.png',
+  '/assets/icons/favicon-32x32.png',
+  '/assets/icons/apple-touch-icon.png',
+  '/assets/icons/android-chrome-192x192.png',
+  '/assets/icons/android-chrome-512x512.png',
+  '/assets/images/ogimage.png'
 ];
 
-// Install event
+// Установка Service Worker
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...');
-  
+  console.log('Service Worker: Installing...');
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then(cache => {
-        console.log('Caching static files...');
-        return cache.addAll(STATIC_FILES);
-      })
-      .then(() => {
-        console.log('Static files cached successfully');
-        return self.skipWaiting();
-      })
-      .catch(error => {
-        console.error('Failed to cache static files:', error);
-      })
-  );
-});
-
-// Activate event
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating...');
-  
-  event.waitUntil(
-    caches.keys()
-      .then(cacheNames => {
-        return Promise.all(
-          cacheNames.map(cacheName => {
-            if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
-              console.log('Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Service Worker: Caching files');
+        // Кэшируем файлы по одному, чтобы избежать ошибок CORS
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(err => {
+              console.warn(`Service Worker: Failed to cache ${url}:`, err);
+              return null;
+            })
+          )
         );
       })
       .then(() => {
-        console.log('Service Worker activated');
-        return self.clients.claim();
+        console.log('Service Worker: Caching completed');
+      })
+      .catch((error) => {
+        console.error('Service Worker: Cache failed', error);
+      })
+  );
+  self.skipWaiting();
+});
+
+// Активация Service Worker
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activating...');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Deleting old cache', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+// Перехват запросов
+self.addEventListener('fetch', (event) => {
+  // Пропускаем запросы к внешним API и ресурсам
+  if (event.request.url.includes('rebrickable.com') || 
+      event.request.url.includes('brickognize.com') ||
+      event.request.url.includes('corsproxy') ||
+      event.request.url.includes('cdn.tailwindcss.com') ||
+      event.request.url.includes('unpkg.com') ||
+      event.request.url.includes('fonts.googleapis.com') ||
+      event.request.url.includes('fonts.gstatic.com')) {
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // Возвращаем кэшированную версию, если есть
+        if (response) {
+          return response;
+        }
+
+        // Иначе делаем запрос к сети
+        return fetch(event.request)
+          .then((response) => {
+            // Проверяем, что ответ валидный
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            // Клонируем ответ для кэширования
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+
+            return response;
+          })
+          .catch(() => {
+            // Если запрос к сети не удался, показываем офлайн страницу
+            if (event.request.destination === 'document') {
+              return caches.match('/index.html');
+            }
+          });
       })
   );
 });
 
-// Fetch event
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-  
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    return;
-  }
-  
-  // Skip chrome-extension and other non-http requests
-  if (!url.protocol.startsWith('http')) {
-    return;
-  }
-  
-  event.respondWith(handleRequest(request));
-});
-
-// Handle different types of requests
-async function handleRequest(request) {
-  const url = new URL(request.url);
-  
-  // Static assets (CSS, JS, images)
-  if (isStaticAsset(url)) {
-    return handleStaticAsset(request);
-  }
-  
-  // API requests
-  if (isApiRequest(url)) {
-    return handleApiRequest(request);
-  }
-  
-  // Data files (CSV)
-  if (isDataFile(url)) {
-    return handleDataFile(request);
-  }
-  
-  // HTML pages
-  if (isHtmlRequest(request)) {
-    return handleHtmlRequest(request);
-  }
-  
-  // Default: try network first, then cache
-  return networkFirst(request);
-}
-
-// Check if request is for static asset
-function isStaticAsset(url) {
-  return url.pathname.startsWith('/assets/') || 
-         url.pathname.endsWith('.css') || 
-         url.pathname.endsWith('.js') ||
-         url.pathname.endsWith('.png') ||
-         url.pathname.endsWith('.jpg') ||
-         url.pathname.endsWith('.jpeg') ||
-         url.pathname.endsWith('.gif') ||
-         url.pathname.endsWith('.svg') ||
-         url.pathname.endsWith('.ico');
-}
-
-// Check if request is for API
-function isApiRequest(url) {
-  return url.hostname.includes('rebrickable.com') ||
-         url.hostname.includes('cdn.rebrickable.com');
-}
-
-// Check if request is for data file
-function isDataFile(url) {
-  return url.pathname.endsWith('.csv') ||
-         url.pathname.startsWith('/data/');
-}
-
-// Check if request is for HTML
-function isHtmlRequest(request) {
-  return request.headers.get('accept')?.includes('text/html');
-}
-
-// Handle static assets - cache first
-async function handleStaticAsset(request) {
-  try {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.error('Failed to handle static asset:', error);
-    return new Response('Asset not available offline', { status: 404 });
-  }
-}
-
-// Handle API requests - network first with cache fallback
-async function handleApiRequest(request) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    console.log('API request failed, trying cache:', error);
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    throw error;
-  }
-}
-
-// Handle data files - stale while revalidate
-async function handleDataFile(request) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    console.log('Data file request failed, trying cache:', error);
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      // Revalidate in background
-      fetch(request).then(response => {
-        if (response.ok) {
-          caches.open(DYNAMIC_CACHE).then(cache => {
-            cache.put(request, response);
-          });
-        }
-      }).catch(() => {
-        // Ignore background fetch errors
-      });
-      return cachedResponse;
-    }
-    throw error;
-  }
-}
-
-// Handle HTML requests - cache first
-async function handleHtmlRequest(request) {
-  try {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.error('Failed to handle HTML request:', error);
-    return new Response('Page not available offline', { status: 404 });
-  }
-}
-
-// Network first strategy
-async function networkFirst(request) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    throw error;
-  }
-}
-
-// Cache first strategy
-async function cacheFirst(request) {
-  try {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    throw error;
-  }
-}
-
-// Message handling
+// Обработка сообщений от основного потока
 self.addEventListener('message', (event) => {
-  const { type, payload } = event.data;
-  
-  switch (type) {
-    case 'SKIP_WAITING':
-      self.skipWaiting();
-      break;
-      
-    case 'CACHE_URLS':
-      cacheUrls(payload.urls);
-      break;
-      
-    case 'CLEAR_CACHE':
-      clearCache(payload.cacheName);
-      break;
-      
-    case 'GET_CACHE_INFO':
-      getCacheInfo().then(info => {
-        event.ports[0].postMessage({ type: 'CACHE_INFO', payload: info });
-      });
-      break;
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
 
-// Cache specific URLs
-async function cacheUrls(urls) {
-  try {
-    const cache = await caches.open(DYNAMIC_CACHE);
-    const responses = await Promise.all(
-      urls.map(url => fetch(url).catch(() => null))
-    );
-    
-    responses.forEach((response, index) => {
-      if (response && response.ok) {
-        cache.put(urls[index], response);
-      }
-    });
-    
-    console.log(`Cached ${urls.length} URLs`);
-  } catch (error) {
-    console.error('Failed to cache URLs:', error);
-  }
-}
-
-// Clear specific cache
-async function clearCache(cacheName) {
-  try {
-    await caches.delete(cacheName);
-    console.log(`Cleared cache: ${cacheName}`);
-  } catch (error) {
-    console.error('Failed to clear cache:', error);
-  }
-}
-
-// Get cache information
-async function getCacheInfo() {
-  try {
-    const cacheNames = await caches.keys();
-    const cacheInfo = {};
-    
-    for (const cacheName of cacheNames) {
-      const cache = await caches.open(cacheName);
-      const keys = await cache.keys();
-      cacheInfo[cacheName] = {
-        size: keys.length,
-        urls: keys.map(request => request.url)
-      };
-    }
-    
-    return cacheInfo;
-  } catch (error) {
-    console.error('Failed to get cache info:', error);
-    return {};
-  }
-}
-
-// Background sync
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-// Perform background sync
-async function doBackgroundSync() {
-  try {
-    // Sync collection data
-    console.log('Performing background sync...');
-    
-    // This would sync with cloud storage or API
-    // Implementation depends on specific requirements
-    
-    console.log('Background sync completed');
-  } catch (error) {
-    console.error('Background sync failed:', error);
-  }
-}
-
-// Push notifications
+// Обработка push уведомлений (если понадобится в будущем)
 self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
     const options = {
       body: data.body,
-      icon: '/assets/icons/favicon-192x192.png',
-      badge: '/assets/icons/favicon-192x192.png',
-      tag: data.tag || 'lego-catalog',
-      data: data.data
+      icon: '/assets/icons/android-chrome-192x192.png',
+      badge: '/assets/icons/favicon-32x32.png',
+      vibrate: [100, 50, 100],
+      data: {
+        dateOfArrival: Date.now(),
+        primaryKey: 1
+      },
+      actions: [
+        {
+          action: 'explore',
+          title: 'Открыть приложение',
+          icon: '/assets/icons/favicon-32x32.png'
+        },
+        {
+          action: 'close',
+          title: 'Закрыть',
+          icon: '/assets/icons/favicon-32x32.png'
+        }
+      ]
     };
-    
+
     event.waitUntil(
       self.registration.showNotification(data.title, options)
     );
   }
 });
 
-// Notification click
+// Обработка кликов по уведомлениям
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
-  event.waitUntil(
-    clients.openWindow('/')
-  );
+
+  if (event.action === 'explore') {
+    event.waitUntil(
+      clients.openWindow('/')
+    );
+  }
 });
 
-console.log('Service Worker loaded');
+// Периодическая синхронизация (если поддерживается)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'background-sync') {
+    event.waitUntil(
+      // Здесь можно добавить логику синхронизации данных
+      console.log('Background sync triggered')
+    );
+  }
+});

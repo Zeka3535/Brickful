@@ -97,26 +97,42 @@ jspm_packages/
 tmp/
 temp/
 
-# Local data files (if any)
-data/local/
-data/temp/
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local development
+.local
+.cache
+
+# API keys and sensitive data
+config/local.js
+config/production.js
+secrets.json
+
+# Data files (if they contain sensitive information)
+data/private/
+*.csv.backup
 
 # Backup files
-*.bak
 *.backup
-*.old
+*.bak
+*.tmp
 
-# Archive files
-*.zip
-*.tar.gz
-*.rar
+# Test files
+test-results/
+coverage/
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
+# Documentation build
+docs/_build/
 
-# Python files (if any)
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -128,6 +144,48 @@ ENV/
 env.bak/
 venv.bak/
 
-# LEGO specific
-Minifig_png/
-Downloads/
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/

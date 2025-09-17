@@ -324,7 +324,7 @@ function measurePerformance(name, fn) {
 }
 
 // Export functions
-window.Utils = {
+const Utils = {
   debounce,
   throttle,
   formatNumber,
@@ -353,3 +353,9 @@ window.Utils = {
   handleError,
   measurePerformance
 };
+
+// Make available globally for backward compatibility
+window.Utils = Utils;
+
+// Export for use in other modules
+export { Utils };

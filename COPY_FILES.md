@@ -1,26 +1,27 @@
-# Инструкция по переносу файлов
+# Инструкции по копированию файлов
 
-## Необходимо скопировать следующие файлы:
+## Необходимые файлы для полной функциональности
 
-### 1. Иконки (в папку `assets/icons/`)
-Из папки `каталог-lego OLD/` скопируйте:
-- `favicon.ico`
-- `favicon-16x16.png`
-- `favicon-32x32.png`
+### 1. Иконки (assets/icons/)
+Скопируйте следующие файлы из папки `каталог-lego OLD/`:
 - `apple-touch-icon.png`
 - `android-chrome-192x192.png`
 - `android-chrome-512x512.png`
+- `favicon-16x16.png`
+- `favicon-32x32.png`
+- `favicon.ico`
 
-### 2. Изображения (в папку `assets/images/`)
-Из папки `каталог-lego OLD/` скопируйте:
+### 2. Изображения (assets/images/)
+Скопируйте следующие файлы из папки `каталог-lego OLD/`:
 - `ogimage.png`
 
-### 3. Данные (в папку `data/`)
-Из папки `каталог-lego OLD/Data/` скопируйте всю папку `Data` целиком:
+### 3. Данные (assets/data/)
+Скопируйте всю папку `Data/` из `каталог-lego OLD/` в `assets/data/`:
 - `colors.csv`
 - `elements.csv`
 - `inventories.csv`
 - `inventory_minifigs.csv`
+- `inventory_parts_split/` (вся папка)
 - `inventory_sets.csv`
 - `minifigs.csv`
 - `part_categories.csv`
@@ -28,56 +29,95 @@
 - `parts.csv`
 - `sets.csv`
 - `themes.csv`
-- `inventory_parts_split/` (всю папку)
 
-## После копирования файлов:
+### 4. Минифигурки (assets/images/minifigs/)
+Скопируйте папку `Minifig_png/` из `каталог-lego OLD/` в `assets/images/minifigs/`
 
-1. **Запустите локальный сервер** (обязательно!):
-   ```bash
-   # Python 3
-   python -m http.server 8080
-   
-   # Или Node.js
-   npx serve -p 8080
-   ```
+## Команды для копирования
 
-2. **Откройте в браузере**: `http://localhost:8080`
+### Windows (PowerShell)
+```powershell
+# Создание папок
+New-Item -ItemType Directory -Path "assets\icons" -Force
+New-Item -ItemType Directory -Path "assets\images" -Force
+New-Item -ItemType Directory -Path "assets\data" -Force
+New-Item -ItemType Directory -Path "assets\images\minifigs" -Force
 
-3. **НЕ открывайте файл напрямую** (`file://`) - это вызовет ошибки CORS!
+# Копирование иконок
+Copy-Item "каталог-lego OLD\*.png" "assets\icons\"
+Copy-Item "каталог-lego OLD\favicon.ico" "assets\icons\"
 
-## Структура должна выглядеть так:
+# Копирование изображений
+Copy-Item "каталог-lego OLD\ogimage.png" "assets\images\"
+
+# Копирование данных
+Copy-Item "каталог-lego OLD\Data\*" "assets\data\" -Recurse
+
+# Копирование минифигурок
+Copy-Item "каталог-lego OLD\Minifig_png\*" "assets\images\minifigs\" -Recurse
+```
+
+### Linux/macOS (Bash)
+```bash
+# Создание папок
+mkdir -p assets/icons
+mkdir -p assets/images
+mkdir -p assets/data
+mkdir -p assets/images/minifigs
+
+# Копирование иконок
+cp "каталог-lego OLD"/*.png assets/icons/
+cp "каталог-lego OLD"/favicon.ico assets/icons/
+
+# Копирование изображений
+cp "каталог-lego OLD"/ogimage.png assets/images/
+
+# Копирование данных
+cp -r "каталог-lego OLD"/Data/* assets/data/
+
+# Копирование минифигурок
+cp -r "каталог-lego OLD"/Minifig_png/* assets/images/minifigs/
+```
+
+## Проверка
+
+После копирования убедитесь, что структура папок выглядит так:
 
 ```
-lego-catalog/
-├── assets/
-│   ├── icons/
-│   │   ├── favicon.ico
-│   │   ├── favicon-16x16.png
-│   │   ├── favicon-32x32.png
-│   │   ├── apple-touch-icon.png
-│   │   ├── android-chrome-192x192.png
-│   │   └── android-chrome-512x512.png
-│   └── images/
-│       └── ogimage.png
-├── data/
-│   ├── colors.csv
-│   ├── parts.csv
-│   ├── sets.csv
-│   ├── themes.csv
-│   ├── minifigs.csv
-│   ├── part_categories.csv
-│   ├── inventories.csv
-│   ├── inventory_sets.csv
-│   ├── inventory_minifigs.csv
-│   └── inventory_parts_split/
-│       ├── inventory_parts_part_001.csv
-│       ├── inventory_parts_part_002.csv
+assets/
+├── icons/
+│   ├── apple-touch-icon.png
+│   ├── android-chrome-192x192.png
+│   ├── android-chrome-512x512.png
+│   ├── favicon-16x16.png
+│   ├── favicon-32x32.png
+│   └── favicon.ico
+├── images/
+│   ├── ogimage.png
+│   └── minifigs/
+│       ├── fig-1.png
+│       ├── fig-2.png
 │       └── ...
-└── index.html
+└── data/
+    ├── colors.csv
+    ├── elements.csv
+    ├── inventories.csv
+    ├── inventory_minifigs.csv
+    ├── inventory_parts_split/
+    │   ├── inventory_parts_part_001.csv
+    │   ├── inventory_parts_part_002.csv
+    │   └── ...
+    ├── inventory_sets.csv
+    ├── minifigs.csv
+    ├── part_categories.csv
+    ├── part_relationships.csv
+    ├── parts.csv
+    ├── sets.csv
+    └── themes.csv
 ```
 
-## Важно!
+## Примечания
 
-- **Обязательно запускайте через локальный сервер** - иначе будут ошибки CORS
-- Файлы должны быть в правильных папках
-- После копирования перезапустите сервер
+- Убедитесь, что все файлы скопированы корректно
+- Проверьте, что размеры файлов соответствуют ожидаемым
+- После копирования запустите приложение и проверьте загрузку данных

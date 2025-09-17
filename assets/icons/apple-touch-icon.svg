@@ -1,0 +1,7 @@
+<svg width="180" height="180" xmlns="http://www.w3.org/2000/svg">
+  <rect width="180" height="180" fill="#1a202c" rx="20"/>
+  <rect x="20" y="20" width="140" height="140" fill="#e53e3e" rx="10"/>
+  <rect x="40" y="40" width="100" height="100" fill="#38a169" rx="5"/>
+  <rect x="60" y="60" width="60" height="60" fill="#3182ce" rx="3"/>
+  <text x="90" y="100" fill="white" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle">L</text>
+</svg>

@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 // Main application for LEGO Catalog
 import { CONFIG } from './config.js';
 import { Utils } from './utils.js';
@@ -11,40 +12,71 @@ class LEGOCatalogApp {
     this.currentView = 'catalog';
     this.settings = Storage.getSettings();
   }
+=======
+// assets/js/app.js - Main application logic
+import { Storage } from './storage.js';
+import { DEBUG_MODE } from './config.js';
+import { DataLoader } from './data-loader.js';
 
-  // Initialize application
-  async init() {
-    if (this.isInitialized) return;
+// Глобальное состояние приложения
+window.S = {
+    view: 'catalog',
+    subView: 'parts',
+    toolSubView: '',
+    q: '',
+    loading: false,
+    err: null,
+    gridStale: false,
+    toDisplay: 50,
+    increment: 50,
+    selCatId: null,
+    selThemeId: null,
+    selCollThemeId: null,
+    selFigNum: null,
+    showRelatedSets: false,
+    searchGroups: null,
+    catGroups: null,
+    coll: {},
+    setColl: {},
+    minifigColl: {},
+    favThemeIds: new Set(),
+    favCategoryIds: new Set(),
+    expThemes: new Set(),
+    multiSelect: {
+        active: false,
+        items: new Set(),
+        justActivated: false
+    },
+    collectionMultiSelectEnabled: false,
+    catalogMultiSelectEnabled: false,
+    wishlistEnabled: false,
+    sidebarLoading: false,
+    totalSetsInCatalog: 0
+};
+>>>>>>> Stashed changes
 
-    try {
-      this.showLoadingScreen();
-      this.setupGlobalErrorHandling();
-      this.setupBeforeUnload();
-      
-      // Initialize components
-      await this.initializeComponents();
-      
-      // Load data
-      await this.loadData();
-      
-      // Setup UI
-      this.setupUI();
-      
-      // Initialize analytics
-      if (CONFIG.FEATURES.analytics) {
-        analytics.init();
-      }
-      
-      // Hide loading screen
-      this.hideLoadingScreen();
-      
-      this.isInitialized = true;
-      console.log('LEGO Catalog initialized successfully');
-      
-    } catch (error) {
-      Utils.handleError(error, 'App initialization');
-      this.showErrorScreen(error);
+// DOM элементы
+let sidebarEl, headerEl, mainEl;
+
+// Инициализация приложения
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 LEGO Catalog App starting...');
+    
+    // Получаем DOM элементы
+    sidebarEl = document.getElementById('sidebar-container');
+    headerEl = document.getElementById('header-container');
+    mainEl = document.getElementById('main-content');
+    
+    // Инициализируем хранилище
+    Storage.initRemoteStorage();
+    
+    // Загружаем данные
+    loadInitialData();
+    
+    if (DEBUG_MODE) {
+        console.log('✅ App initialized successfully');
     }
+<<<<<<< Updated upstream
   }
 
   // Show loading screen
@@ -414,3 +446,290 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Export for use in other modules
 export { app, LEGOCatalogApp };
+=======
+});
+
+// Загрузка начальных данных
+async function loadInitialData() {
+    try {
+        updateLoadingStatus('Загрузка данных...', 0);
+        
+        // Здесь будет загрузка CSV данных
+        // Пока что просто скрываем экран загрузки
+        setTimeout(() => {
+            hideLoadingScreen();
+            renderUI();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки данных:', error);
+        updateLoadingStatus('Ошибка загрузки данных', 0);
+    }
+}
+
+// Обновление статуса загрузки
+function updateLoadingStatus(message, progress) {
+    const statusEl = document.getElementById('loading-status');
+    const progressEl = document.getElementById('loading-progress');
+    
+    if (statusEl) statusEl.textContent = message;
+    if (progressEl) progressEl.style.width = `${progress}%`;
+}
+
+// Скрытие экрана загрузки
+function hideLoadingScreen() {
+    const loadingContainer = document.getElementById('loading-container');
+    if (loadingContainer) {
+        loadingContainer.style.display = 'none';
+    }
+}
+
+// Рендеринг UI
+function renderUI() {
+    renderSidebar();
+    renderHeader();
+    renderMain();
+}
+
+// Рендеринг сайдбара
+function renderSidebar() {
+    if (!sidebarEl) return;
+    
+    const viewButtons = [
+        { id: 'catalog', label: 'Каталог', icon: '📚' },
+        { id: 'collection', label: 'Коллекция', icon: '🏠' },
+        { id: 'tools', label: 'Инструменты', icon: '🔧' }
+    ];
+    
+    const subViewButtons = getSubViewButtons();
+    
+    sidebarEl.innerHTML = `
+        <div class="space-y-4">
+            <div class="space-y-2">
+                ${viewButtons.map(btn => `
+                    <button 
+                        data-action="set-view" 
+                        data-view="${btn.id}"
+                        class="w-full flex items-center space-x-3 p-3 rounded-lg transition-colors duration-200 ${
+                            S.view === btn.id ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                        }"
+                    >
+                        <span class="text-xl">${btn.icon}</span>
+                        <span class="font-medium">${btn.label}</span>
+                    </button>
+                `).join('')}
+            </div>
+            
+            ${subViewButtons.length > 0 ? `
+                <div class="space-y-1">
+                    ${subViewButtons.map(btn => `
+                        <button 
+                            data-action="set-subview" 
+                            data-subview="${btn.id}"
+                            class="w-full flex items-center space-x-3 p-2 rounded-lg transition-colors duration-200 ${
+                                S.subView === btn.id ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                            }"
+                        >
+                            <span class="text-lg">${btn.icon}</span>
+                            <span class="text-sm font-medium">${btn.label}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    setupSidebarHandlers();
+}
+
+// Получение кнопок подразделов
+function getSubViewButtons() {
+    switch (S.view) {
+        case 'catalog':
+        case 'collection':
+            return [
+                { id: 'parts', label: 'Детали', icon: '🧩' },
+                { id: 'sets', label: 'Наборы', icon: '📦' },
+                { id: 'minifigs', label: 'Минифигурки', icon: '👤' }
+            ];
+        case 'tools':
+            return [
+                { id: 'analytics', label: 'Аналитика', icon: '📊' },
+                { id: 'wishlist', label: 'Списки желаний', icon: '⭐' },
+                { id: 'scanner', label: 'Сканер', icon: '📱' },
+                { id: 'photo-search', label: 'Поиск по фото', icon: '📷' }
+            ];
+        default:
+            return [];
+    }
+}
+
+// Настройка обработчиков сайдбара
+function setupSidebarHandlers() {
+    sidebarEl.querySelectorAll('[data-action="set-view"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const view = e.currentTarget.dataset.view;
+            S.view = view;
+            S.subView = getSubViewButtons()[0]?.id || '';
+            S.toolSubView = '';
+            renderUI();
+        });
+    });
+    
+    sidebarEl.querySelectorAll('[data-action="set-subview"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const subView = e.currentTarget.dataset.subview;
+            S.subView = subView;
+            S.toolSubView = '';
+            renderUI();
+        });
+    });
+}
+
+// Рендеринг заголовка
+function renderHeader() {
+    if (!headerEl) return;
+    
+    const searchContext = S.view === 'collection' ? 'в коллекции' : 'в каталоге';
+    
+    headerEl.innerHTML = `
+        <div class="flex justify-between items-center gap-4">
+            <div class="flex items-center">
+                <button id="sidebar-toggle" class="sidebar-toggle-btn lg:hidden" title="Открыть/закрыть боковую панель навигации">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <h1 class="text-xl font-bold text-white hidden sm:block main-title">
+                    <span class="bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 bg-clip-text text-transparent font-extrabold tracking-tight">LEGO® Catalog</span>
+                </h1>
+            </div>
+            <div class="flex items-center space-x-2 w-full max-w-sm">
+                <div class="relative flex-grow">
+                    <input id="search-input" type="search" placeholder="Поиск ${searchContext}..." value="${S.q}" class="w-full bg-gray-700 border border-gray-600 rounded-md pl-4 pr-12 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Поиск ${searchContext}" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="off"/>
+                    <button id="clear-search" class="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-gray-400 hover:text-white ${S.q ? '' : 'hidden'}" title="Очистить поисковый запрос">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                    <div id="search-icon" class="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-gray-400 ${S.q ? 'hidden' : ''}" title="Поиск">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <button id="ai-search-button" class="px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-150 shadow-lg hover:shadow-blue-500/25 flex-shrink-0" aria-label="AI поиск" title="AI поиск по фотографии">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+                <button id="filter-button" class="px-3 bg-gray-600 text-white rounded-md hover:bg-gray-500 transition-colors duration-150 shadow-lg hover:shadow-gray-500/25 flex-shrink-0" aria-label="Фильтры" title="Открыть панель фильтров и сортировки">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    setupHeaderHandlers();
+}
+
+// Настройка обработчиков заголовка
+function setupHeaderHandlers() {
+    const searchInput = document.getElementById('search-input');
+    const clearSearch = document.getElementById('clear-search');
+    const searchIcon = document.getElementById('search-icon');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            S.q = e.target.value;
+            if (S.q) {
+                clearSearch?.classList.remove('hidden');
+                searchIcon?.classList.add('hidden');
+            } else {
+                clearSearch?.classList.add('hidden');
+                searchIcon?.classList.remove('hidden');
+            }
+        });
+    }
+    
+    if (clearSearch) {
+        clearSearch.addEventListener('click', () => {
+            S.q = '';
+            if (searchInput) searchInput.value = '';
+            clearSearch.classList.add('hidden');
+            searchIcon?.classList.remove('hidden');
+        });
+    }
+    
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+            sidebarEl?.classList.toggle('-translate-x-full');
+        });
+    }
+}
+
+// Рендеринг основного контента
+function renderMain() {
+    if (!mainEl) return;
+    
+    let content = '';
+    
+    switch (S.view) {
+        case 'catalog':
+            content = renderCatalogContent();
+            break;
+        case 'collection':
+            content = renderCollectionContent();
+            break;
+        case 'tools':
+            content = renderToolsContent();
+            break;
+        default:
+            content = '<div class="p-8 text-center text-gray-400">Выберите раздел</div>';
+    }
+    
+    mainEl.innerHTML = content;
+}
+
+// Рендеринг контента каталога
+function renderCatalogContent() {
+    return `
+        <div class="p-8">
+            <h2 class="text-2xl font-bold text-white mb-6">Каталог LEGO</h2>
+            <div class="text-gray-400">
+                <p>Раздел: ${S.subView}</p>
+                <p>Поиск: ${S.q || 'Нет'}</p>
+            </div>
+        </div>
+    `;
+}
+
+// Рендеринг контента коллекции
+function renderCollectionContent() {
+    return `
+        <div class="p-8">
+            <h2 class="text-2xl font-bold text-white mb-6">Моя коллекция</h2>
+            <div class="text-gray-400">
+                <p>Раздел: ${S.subView}</p>
+                <p>Поиск: ${S.q || 'Нет'}</p>
+            </div>
+        </div>
+    `;
+}
+
+// Рендеринг контента инструментов
+function renderToolsContent() {
+    return `
+        <div class="p-8">
+            <h2 class="text-2xl font-bold text-white mb-6">Инструменты</h2>
+            <div class="text-gray-400">
+                <p>Инструмент: ${S.toolSubView || 'Не выбран'}</p>
+            </div>
+        </div>
+    `;
+}
+>>>>>>> Stashed changes
